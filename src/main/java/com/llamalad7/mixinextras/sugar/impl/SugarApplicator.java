@@ -2,9 +2,7 @@ package com.llamalad7.mixinextras.sugar.impl;
 
 import com.llamalad7.mixinextras.injector.StackExtension;
 import com.llamalad7.mixinextras.service.MixinExtrasService;
-import com.llamalad7.mixinextras.sugar.Cancellable;
-import com.llamalad7.mixinextras.sugar.Local;
-import com.llamalad7.mixinextras.sugar.Share;
+import com.llamalad7.mixinextras.sugar.*;
 import com.llamalad7.mixinextras.utils.ASMUtils;
 import com.llamalad7.mixinextras.utils.CompatibilityHelper;
 import org.apache.commons.lang3.tuple.Pair;
@@ -30,7 +28,9 @@ abstract class SugarApplicator {
         List<Pair<Class<? extends Annotation>, Class<? extends SugarApplicator>>> sugars = Arrays.asList(
                 Pair.of(Cancellable.class, CancellableSugarApplicator.class),
                 Pair.of(Local.class, LocalSugarApplicator.class),
-                Pair.of(Share.class, ShareSugarApplicator.class)
+                Pair.of(Share.class, ShareSugarApplicator.class),
+                Pair.of(BreakLoop.class, BreakLoopSugarApplicator.class),
+                Pair.of(Jump.class, JumpSugarApplicator.class)
         );
         for (Pair<Class<? extends Annotation>, Class<? extends SugarApplicator>> pair : sugars) {
             for (String name : MixinExtrasService.getInstance().getAllClassNames(pair.getLeft().getName())) {
