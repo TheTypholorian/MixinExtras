@@ -37,7 +37,7 @@ class JumpSugarApplicator extends AbstractJumpSugarApplicator {
             throw new IllegalStateException("@Jump must specify exactly one target, got " + targets.size());
         }
 
-        AbstractInsnNode targetNode = targets.getFirst();
+        AbstractInsnNode targetNode = targets.get(0);
         List<AnnotationNode> localsToModify = Annotations.getValue(sugar, "localsToModify", false);
 
         for (AnnotationNode local : localsToModify) {
