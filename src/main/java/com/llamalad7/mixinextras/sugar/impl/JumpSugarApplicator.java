@@ -1,5 +1,6 @@
 package com.llamalad7.mixinextras.sugar.impl;
 
+import com.llamalad7.mixinextras.utils.CompatibilityHelper;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.AnnotationNode;
@@ -29,7 +30,7 @@ class JumpSugarApplicator extends AbstractJumpSugarApplicator {
 
     @Override
     void prepare(Target target, InjectionNodes.InjectionNode node) {
-        InjectionPoint injectionPoint = InjectionPoint.parse(info.getContext(), target.method, sugar, Annotations.<AnnotationNode>getValue(sugar, "value"));
+        InjectionPoint injectionPoint = InjectionPoint.parse(CompatibilityHelper.getMixin(info), target.method, sugar, Annotations.<AnnotationNode>getValue(sugar, "value"));
         List<AbstractInsnNode> targets = new ArrayList<>();
         injectionPoint.find(target.method.desc, target.method.instructions, targets);
 
