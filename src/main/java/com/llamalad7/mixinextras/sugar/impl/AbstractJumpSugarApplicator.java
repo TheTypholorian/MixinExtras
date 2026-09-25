@@ -13,6 +13,7 @@ import org.objectweb.asm.tree.analysis.Analyzer;
 import org.objectweb.asm.tree.analysis.AnalyzerException;
 import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Frame;
+import org.objectweb.asm.util.TraceClassVisitor;
 import org.spongepowered.asm.mixin.injection.modify.LocalVariableDiscriminator;
 import org.spongepowered.asm.mixin.injection.struct.InjectionInfo;
 import org.spongepowered.asm.mixin.injection.struct.InjectionNodes;
@@ -20,6 +21,7 @@ import org.spongepowered.asm.mixin.injection.struct.Target;
 import org.spongepowered.asm.util.asm.ASM;
 import org.spongepowered.asm.util.asm.MixinVerifier;
 
+import java.io.PrintWriter;
 import java.util.*;
 
 abstract class AbstractJumpSugarApplicator extends SugarApplicator {
@@ -115,6 +117,12 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
             throw new IllegalStateException("Specified locals to modify in jump annotation but doesn't take a complex jump info");
         }
 
+        if (targetFrame.getStackSize() != 0 && !complex) {
+            throw new IllegalStateException("Jump target has non-empty stack but no stack handling is set. Add 'shiftBeforeStack = true' in your @Jump annotation, or change the sugar type to JumpHandleComplex and set stack values through it.");
+        }
+
+        System.out.println("Jumping from " + sourceFrame + " to " + targetFrame);
+
         if (!(jumpTarget instanceof LabelNode)) {
             LabelNode label = new LabelNode();
             target.method.instructions.insertBefore(jumpTarget, label);
@@ -171,8 +179,10 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
 
             for (int i = sourceFrame.getStackSize() - 1; i >= 0; i--) {
                 BasicValue value = sourceFrame.getStack(i);
+                System.out.println("Stack value " + value);
 
                 if (!value.equals(BasicValue.UNINITIALIZED_VALUE)) {
+                    System.out.println("Popping");
                     switch (value.getType().getSize()) {
                         case 1:
                             after.add(new InsnNode(Opcodes.POP));
@@ -258,7 +268,7 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
                                         false
                                 ));
                                 after.add(new TypeInsnNode(Opcodes.CHECKCAST, local.type.getInternalName()));
-                                after.add(new VarInsnNode(Opcodes.DSTORE, localVar));
+                                after.add(new VarInsnNode(Opcodes.ASTORE, localVar));
                                 break;
                         }
                     }
@@ -328,7 +338,9 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
 
             after.add(new JumpInsnNode(Opcodes.GOTO, jumpTarget));
             after.add(notJumped);
-            target.insns.insertBefore(node.getCurrentTarget(), after);
+            target.insertBefore(node, after);
         });
+
+        target.classNode.accept(new TraceClassVisitor(new PrintWriter(System.out)));
     }
 }
