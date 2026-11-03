@@ -38,7 +38,7 @@ public class JumpInfoComplexImpl implements JumpInfoComplex {
     }
 
     @Override
-    public boolean hasJumped() {
+    public boolean willJump() {
         return jumped;
     }
 

@@ -11,7 +11,7 @@ public class JumpInfoImpl implements JumpInfo {
     }
 
     @Override
-    public boolean hasJumped() {
+    public boolean willJump() {
         return jumped;
     }
 }

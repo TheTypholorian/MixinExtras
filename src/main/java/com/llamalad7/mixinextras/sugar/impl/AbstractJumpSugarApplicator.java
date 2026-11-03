@@ -167,7 +167,7 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
             after.add(new MethodInsnNode(
                     Opcodes.INVOKEVIRTUAL,
                     jumpInfoImplType.getInternalName(),
-                    "hasJumped",
+                    "willJump",
                     "()Z",
                     false
             ));

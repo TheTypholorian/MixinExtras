@@ -10,7 +10,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * A mixin sugar annotation that allows for an arbitrary jump to any place in the target method.<br>
+ * A mixin sugar annotation that allows for an arbitrary jump to any place in the target method (the jump only occurs after the mixin handler has finished).<br>
  * Arguments must be of type {@link JumpInfo} or {@link JumpInfoComplex} when locals/stack values need extra handling (se {@link Jump#localsToModify()} and {@link Jump#shiftBeforeStack()} for more info).<br>
  * Example for usage:
  * <pre>{@code
@@ -60,13 +60,14 @@ import java.lang.annotation.Target;
  *     }
  * }
  * }</pre>
- * though that is not exact, and there will only be <bold>one</bold> {@code methodA} call in the bytecode.
+ * There will only be <bold>one</bold> {@code methodA} call in the bytecode (regardless of what decompilers say).
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.CLASS)
 public @interface Jump {
     /**
      * The instruction to jump to.
+     * Must match exactly one instruction, otherwise an error is thrown.
      */
     At value();
     /**
