@@ -108,7 +108,7 @@ public @interface Jump {
      *             @Local(type = int.class),
      *             @Local(type = float.class)
      *         }
-     *     ) JumpInfo.Complex jump // Note that this is a JumpInfo.Complex type, as it has the setLocal and setStack methods.
+     *     ) JumpInfoComplex jump // Note that this is a JumpInfoComplex type, as it has the setLocal and setStack methods.
      * ) {
      *     if (shouldJump) {
      *         jump.jump();
