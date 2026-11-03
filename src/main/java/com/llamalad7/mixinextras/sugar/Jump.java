@@ -47,16 +47,16 @@ import java.lang.annotation.Target;
  * <pre>{@code
  * public static void targetMethod() {
  *     if (...) {
+ *     jumpTarget:
  *         methodA();
  *     } else {
  *         JumpInfo.Impl jumpHandle0 = new JumpInfo.Impl(0, 0);
  *         mixinMethod(null, jumpHandle0);
  *
  *         if (jumpHandle0) {
- *             methodA();
- *         } else {
- *             methodB();
+ *             goto jumpTarget;
  *         }
+ *         methodB();
  *     }
  * }
  * }</pre>
