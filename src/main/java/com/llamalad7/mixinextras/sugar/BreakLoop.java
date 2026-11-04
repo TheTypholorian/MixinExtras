@@ -32,7 +32,6 @@ import java.lang.annotation.Target;
  * }
  * }</pre>
  * That code will break the {@code for} loop if {@code condition} inside {@code injectedMethod} is true.
- * TODO will this ever need to be a complex type?
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.CLASS)

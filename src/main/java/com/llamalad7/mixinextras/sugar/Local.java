@@ -59,4 +59,11 @@ public @interface Local {
      * Specifies the type of this local. Only for use in {@link Definition}s.
      */
     Class<?> type() default void.class;
+
+    /**
+     * The 0-based index of jump to target. Indices are based on order in the injector parameter list.
+     *
+     * @see Jump
+     */
+    int jump() default -1;
 }

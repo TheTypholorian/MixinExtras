@@ -1,7 +1,6 @@
 package com.llamalad7.mixinextras.sugar;
 
 import com.llamalad7.mixinextras.sugar.jump.JumpInfo;
-import com.llamalad7.mixinextras.sugar.jump.JumpInfoComplex;
 import org.spongepowered.asm.mixin.injection.At;
 
 import java.lang.annotation.ElementType;
@@ -11,7 +10,7 @@ import java.lang.annotation.Target;
 
 /**
  * A mixin sugar annotation that allows for an arbitrary jump to any place in the target method (the jump only occurs after the mixin handler has finished).<br>
- * Arguments must be of type {@link JumpInfo} or {@link JumpInfoComplex} when locals/stack values need extra handling (see {@link Jump#localsToModify()} and {@link Jump#shiftBeforeStack()} for more info).<br>
+ * Arguments must be of type {@link JumpInfo}<br>
  * Example for usage:
  * <pre>{@code
  * public static void targetMethod() {
@@ -60,7 +59,8 @@ import java.lang.annotation.Target;
  *     }
  * }
  * }</pre>
- * There will only be <bold>one</bold> {@code methodA} call in the bytecode (regardless of what decompilers say).
+ * There will only be <bold>one</bold> {@code methodA} call in the bytecode (regardless of what decompilers say).<br>
+ * When locals or stack values at the jump target need adjustment, use a Local or Stack sugar with {@link Local#jump()}/{@link Stack#jump()} = [0-based index of this jump according to the injector argument order].
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.CLASS)

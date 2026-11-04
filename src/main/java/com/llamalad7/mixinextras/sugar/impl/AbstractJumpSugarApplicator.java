@@ -4,7 +4,6 @@ import com.llamalad7.mixinextras.injector.StackExtension;
 import com.llamalad7.mixinextras.sugar.impl.jump.JumpInfoComplexImpl;
 import com.llamalad7.mixinextras.sugar.impl.jump.JumpInfoImpl;
 import com.llamalad7.mixinextras.sugar.jump.JumpInfo;
-import com.llamalad7.mixinextras.sugar.jump.JumpInfoComplex;
 import com.llamalad7.mixinextras.utils.CompatibilityHelper;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -70,7 +69,7 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
 
     @Override
     int postProcessingPriority() {
-        return 1000;
+        return 1000; // TODO run after locals
     }
 
     protected Frame<BasicValue>[] analyze(Target target) {
