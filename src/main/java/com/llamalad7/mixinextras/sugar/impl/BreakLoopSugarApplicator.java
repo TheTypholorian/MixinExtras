@@ -62,7 +62,7 @@ class BreakLoopSugarApplicator extends AbstractJumpSugarApplicator {
             }
         });
 
-        int depth = Annotations.getValue(sugar, "depth", -1);
+        int depth = Annotations.getValue(sugar, "depth", 0);
         int targetIndex = target.insns.indexOf(node.getCurrentTarget());
         List<Loop> loopStack = new ArrayList<>();
 
@@ -72,7 +72,7 @@ class BreakLoopSugarApplicator extends AbstractJumpSugarApplicator {
             }
         }
 
-        Loop loop = depth == -1 ? loopStack.get(loopStack.size() - 1) : loopStack.get(depth);
+        Loop loop = loopStack.get(loopStack.size() - 1 - depth);
         jumpTarget = loop.endLabel;
         loadFrames(analyze(target), target, node);
     }

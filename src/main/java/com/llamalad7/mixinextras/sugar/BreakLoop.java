@@ -38,15 +38,14 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.CLASS)
 public @interface BreakLoop {
     /**
-     * The depth of the loop to break out of, starting at 0 and increasing by one for each nested loop.<br>
-     * Defaults to -1 which picks the smallest loop that surrounds the injection point.<br>
+     * How many loops to break<br>
      * Example:
      * <pre>{@code
      * for (...) { // Cannot be targeted.
      * }
      *
-     * while (...) { // depth = 0
-     *     for (...) { // depth = 1, this is the default loop that is broken.
+     * while (...) { // depth = 1
+     *     for (...) { // depth = 0, this is the default loop that is broken.
      *         injectedHandler();
      *
      *         do { // Cannot be targeted.
@@ -55,5 +54,5 @@ public @interface BreakLoop {
      * }
      * }</pre>
      */
-    int depth() default -1;
+    int depth() default 0;
 }
