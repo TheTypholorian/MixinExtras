@@ -88,6 +88,9 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
             superType = Type.getObjectType(target.classNode.superName);
         }
 
+        int maxStack = target.method.maxStack;
+        target.method.maxStack = -1;
+
         try {
             return new Analyzer<>(new MixinVerifier(
                     ASM.API_VERSION,
@@ -98,6 +101,8 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
             )).analyze(target.classNode.name, target.method);
         } catch (AnalyzerException e) {
             throw new RuntimeException(e);
+        } finally {
+            target.method.maxStack = maxStack;
         }
     }
 
@@ -108,6 +113,7 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
 
     @Override
     void inject(Target target, InjectionNodes.InjectionNode node, StackExtension stack) {
+        loadFrames(analyze(target), target, node);
         boolean complex = paramType.equals(JUMP_INFO_COMPLEX_TYPE);
         Type jumpInfoImplType = complex ? JUMP_INFO_COMPLEX_IMPL_TYPE : JUMP_INFO_IMPL_TYPE;
 

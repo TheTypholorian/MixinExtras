@@ -45,9 +45,8 @@ class JumpSugarApplicator extends AbstractJumpSugarApplicator {
             this.localsToModify.add(new Local(Annotations.getValue(local, "type", Type.VOID_TYPE), LocalVariableDiscriminator.parse(local)));
         }
 
-        Frame<BasicValue>[] frames = analyze(target);
-
         if (Annotations.getValue(sugar, "shiftBeforeStack", Boolean.FALSE)) {
+            Frame<BasicValue>[] frames = analyze(target);
             int index = target.method.instructions.indexOf(targetNode);
 
             while (frames[index].getStackSize() > 0) {
@@ -57,6 +56,5 @@ class JumpSugarApplicator extends AbstractJumpSugarApplicator {
         }
 
         jumpTarget = targetNode;
-        loadFrames(frames, target, node);
     }
 }

@@ -17,8 +17,5 @@ public interface JumpInfoComplex extends JumpInfo {
      */
     void setLocal(int index, Object value);
 
-    /**
-     * @see Jump#shiftBeforeStack()
-     */
     void setStack(int index, Object value);
 }

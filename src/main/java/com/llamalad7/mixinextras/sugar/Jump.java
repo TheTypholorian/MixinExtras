@@ -11,7 +11,7 @@ import java.lang.annotation.Target;
 
 /**
  * A mixin sugar annotation that allows for an arbitrary jump to any place in the target method (the jump only occurs after the mixin handler has finished).<br>
- * Arguments must be of type {@link JumpInfo} or {@link JumpInfoComplex} when locals/stack values need extra handling (se {@link Jump#localsToModify()} and {@link Jump#shiftBeforeStack()} for more info).<br>
+ * Arguments must be of type {@link JumpInfo} or {@link JumpInfoComplex} when locals/stack values need extra handling (see {@link Jump#localsToModify()} and {@link Jump#shiftBeforeStack()} for more info).<br>
  * Example for usage:
  * <pre>{@code
  * public static void targetMethod() {
