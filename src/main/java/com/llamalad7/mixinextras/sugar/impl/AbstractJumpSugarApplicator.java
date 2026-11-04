@@ -102,7 +102,7 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
     }
 
     protected void loadFrames(Frame<BasicValue>[] frames, Target target, InjectionNodes.InjectionNode node) {
-        sourceFrame = frames[target.insns.indexOf(node.getCurrentTarget())];
+        sourceFrame = frames[target.insns.indexOf(node.getCurrentTarget()) + 1];
         targetFrame = frames[target.insns.indexOf(jumpTarget)];
     }
 
@@ -112,11 +112,17 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
         Type jumpInfoImplType = complex ? JUMP_INFO_COMPLEX_IMPL_TYPE : JUMP_INFO_IMPL_TYPE;
 
         if (!localsToModify.isEmpty() && !complex) {
-            throw new IllegalStateException("Specified locals to modify in jump annotation but doesn't take a complex jump info");
+            throw new IllegalStateException("Specified locals to modify in jump annotation but the sugar argument isn't a JumpInfoComplex");
         }
 
         if (targetFrame.getStackSize() != 0 && !complex) {
-            throw new IllegalStateException("Jump target has non-empty stack but no stack handling is set. Add 'shiftBeforeStack = true' in your @Jump annotation, or change the sugar type to JumpHandleComplex and set stack values through it.");
+            StringBuilder sb = new StringBuilder();
+
+            for (int i = 0; i < targetFrame.getStackSize(); i++) {
+                sb.append(targetFrame.getStack(i));
+            }
+
+            throw new IllegalStateException("Jump target has an unhandled stack of " + sb + " but no stack handling is set. Add 'shiftBeforeStack = true' in your @Jump annotation, or change the sugar type to JumpHandleComplex and set stack values through it.");
         }
 
         if (!(jumpTarget instanceof LabelNode)) {
@@ -179,9 +185,11 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
                 if (!value.equals(BasicValue.UNINITIALIZED_VALUE)) {
                     switch (value.getType().getSize()) {
                         case 1:
+                            System.out.println("Popping 1 " + value);
                             after.add(new InsnNode(Opcodes.POP));
                             break;
                         case 2:
+                            System.out.println("Popping 2 " + value);
                             after.add(new InsnNode(Opcodes.POP2));
                             break;
                         default:
