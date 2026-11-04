@@ -60,7 +60,7 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
         }
     }
 
-    protected AbstractInsnNode jumpTarget;
+    protected InjectionNodes.InjectionNode jumpTarget;
     protected final List<Local> localsToModify = new ArrayList<>();
     protected Frame<BasicValue> sourceFrame, targetFrame;
 
@@ -106,14 +106,23 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
         }
     }
 
-    protected void loadFrames(Frame<BasicValue>[] frames, Target target, InjectionNodes.InjectionNode node) {
-        sourceFrame = frames[target.insns.indexOf(node.getCurrentTarget()) + 1];
-        targetFrame = frames[target.insns.indexOf(jumpTarget)];
+    protected void setJumpTarget(AbstractInsnNode insn, Target target) {
+        if (!(insn instanceof LabelNode)) {
+            LabelNode label = new LabelNode();
+            target.method.instructions.insertBefore(insn, label);
+            insn = label;
+        }
+
+        jumpTarget = target.addInjectionNode(insn);
     }
 
     @Override
     void inject(Target target, InjectionNodes.InjectionNode node, StackExtension stack) {
-        loadFrames(analyze(target), target, node);
+        Frame<BasicValue>[] frames = analyze(target);
+
+        targetFrame = frames[target.insns.indexOf(jumpTarget.getCurrentTarget())];
+        sourceFrame = frames[target.insns.indexOf(node.getCurrentTarget()) + 1];
+
         boolean complex = paramType.equals(JUMP_INFO_COMPLEX_TYPE);
         Type jumpInfoImplType = complex ? JUMP_INFO_COMPLEX_IMPL_TYPE : JUMP_INFO_IMPL_TYPE;
 
@@ -131,13 +140,7 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
             throw new IllegalStateException("Jump target has an unhandled stack of " + sb + " but no stack handling is set. Add 'shiftBeforeStack = true' in your @Jump annotation, or change the sugar type to JumpHandleComplex and set stack values through it.");
         }
 
-        if (!(jumpTarget instanceof LabelNode)) {
-            LabelNode label = new LabelNode();
-            target.method.instructions.insertBefore(jumpTarget, label);
-            jumpTarget = label;
-        }
-
-        LabelNode jumpTarget = (LabelNode) this.jumpTarget;
+        LabelNode labelJumpTarget = (LabelNode) this.jumpTarget.getCurrentTarget();
         int jumpInfoVar = target.allocateLocal();
         target.addLocalVariable(jumpInfoVar, "jumpInfo" + jumpInfoVar, jumpInfoImplType.getDescriptor());
 
@@ -211,7 +214,7 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
                     Set<Integer> indices = new HashSet<>();
 
                     for (Local local : localsToModify) {
-                        LocalVariableDiscriminator.Context context = contexts.computeIfAbsent(new LocalContextKey(local.type, local.discriminator.isArgsOnly()), key -> CompatibilityHelper.makeLvtContext(info, key.type, key.argsOnly, target, jumpTarget));
+                        LocalVariableDiscriminator.Context context = contexts.computeIfAbsent(new LocalContextKey(local.type, local.discriminator.isArgsOnly()), key -> CompatibilityHelper.makeLvtContext(info, key.type, key.argsOnly, target, labelJumpTarget));
                         int localVar = local.discriminator.findLocal(context);
 
                         if (!indices.add(localVar)) {
@@ -344,7 +347,7 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
                 }
             }
 
-            after.add(new JumpInsnNode(Opcodes.GOTO, jumpTarget));
+            after.add(new JumpInsnNode(Opcodes.GOTO, labelJumpTarget));
             after.add(notJumped);
             target.insns.insert(node.getCurrentTarget(), after);
         });

@@ -55,6 +55,6 @@ class JumpSugarApplicator extends AbstractJumpSugarApplicator {
             }
         }
 
-        jumpTarget = targetNode;
+        setJumpTarget(targetNode, target);
     }
 }

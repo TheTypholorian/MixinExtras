@@ -73,6 +73,6 @@ class BreakLoopSugarApplicator extends AbstractJumpSugarApplicator {
         }
 
         Loop loop = loopStack.get(loopStack.size() - 1 - depth);
-        jumpTarget = loop.endLabel;
+        setJumpTarget(loop.endLabel, target);
     }
 }
