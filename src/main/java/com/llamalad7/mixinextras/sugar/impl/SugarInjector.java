@@ -158,6 +158,7 @@ class SugarInjector {
 
     void prepareSugar() {
         makeApplicators();
+        initApplicators();
         validateApplicators();
         prepareApplicators();
     }
@@ -182,7 +183,19 @@ class SugarInjector {
         }
     }
 
+    private void initApplicators() {
+        List<SugarApplicator> applicators = this.applicators.stream()
+                .sorted(Comparator.comparingInt(SugarApplicator::initPriority))
+                .collect(Collectors.toList());
+
+        applicators.forEach(SugarApplicator::init);
+    }
+
     private void validateApplicators() {
+        List<SugarApplicator> applicators = this.applicators.stream()
+                .sorted(Comparator.comparingInt(SugarApplicator::validatePriority))
+                .collect(Collectors.toList());
+
         for (SugarApplicator applicator : applicators) {
             for (Map.Entry<Target, List<InjectionNode>> entry : targets.entrySet()) {
                 Target target = entry.getKey();
@@ -210,6 +223,10 @@ class SugarInjector {
     }
 
     private void prepareApplicators() {
+        List<SugarApplicator> applicators = this.applicators.stream()
+                .sorted(Comparator.comparingInt(SugarApplicator::preparePriority))
+                .collect(Collectors.toList());
+
         for (Map.Entry<Target, List<InjectionNode>> entry : targets.entrySet()) {
             Target target = entry.getKey();
             for (InjectionNode node : entry.getValue()) {
@@ -259,7 +276,7 @@ class SugarInjector {
                 }
                 try {
                     for (SugarApplicator applicator : applicators) {
-                        applicator.inject(target, node, stack);
+                        applicator.inject(target, node, sourceNode, stack);
                     }
                 } catch (Exception e) {
                     throw new SugarApplicationException(

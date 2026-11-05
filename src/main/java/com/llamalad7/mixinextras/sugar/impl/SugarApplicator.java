@@ -16,10 +16,7 @@ import org.spongepowered.asm.mixin.injection.struct.Target;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 abstract class SugarApplicator {
     private static final Map<String, Class<? extends SugarApplicator>> MAP = new HashMap<>();
@@ -30,7 +27,8 @@ abstract class SugarApplicator {
                 Pair.of(Local.class, LocalSugarApplicator.class),
                 Pair.of(Share.class, ShareSugarApplicator.class),
                 Pair.of(BreakLoop.class, BreakLoopSugarApplicator.class),
-                Pair.of(Jump.class, JumpSugarApplicator.class)
+                Pair.of(Jump.class, JumpSugarApplicator.class),
+                Pair.of(JumpStack.class, JumpStackSugarApplicator.class)
         );
         for (Pair<Class<? extends Annotation>, Class<? extends SugarApplicator>> pair : sugars) {
             for (String name : MixinExtrasService.getInstance().getAllClassNames(pair.getLeft().getName())) {
@@ -59,11 +57,25 @@ abstract class SugarApplicator {
         this.paramIndex = parameter.paramIndex;
     }
 
+    abstract void init();
+
     abstract void validate(Target target, InjectionNode node);
 
     abstract void prepare(Target target, InjectionNode node);
 
-    abstract void inject(Target target, InjectionNode node, StackExtension stack);
+    abstract void inject(Target target, InjectionNode node, InjectionNode oldNode, StackExtension stack);
+
+    int initPriority() {
+        return 1000;
+    }
+
+    int validatePriority() {
+        return 1000;
+    }
+
+    int preparePriority() {
+        return 1000;
+    }
 
     int postProcessingPriority() {
         throw new UnsupportedOperationException(

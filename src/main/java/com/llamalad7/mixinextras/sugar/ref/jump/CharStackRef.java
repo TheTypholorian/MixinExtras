@@ -1,8 +1,8 @@
 package com.llamalad7.mixinextras.sugar.ref.jump;
 
 /**
- * @see JumpLocal
+ * @see StackRef
  */
-public interface CharJumpLocal {
+public interface CharStackRef {
     void set(char value);
 }

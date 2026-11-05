@@ -20,19 +20,15 @@ class BreakLoopSugarApplicator extends AbstractJumpSugarApplicator {
         }
     }
 
-    BreakLoopSugarApplicator(InjectionInfo info, SugarParameter parameter) {
-        super(info, parameter);
+    BreakLoopSugarApplicator(SugarInjector parent, SugarParameter parameter) {
+        super(parent, parameter);
     }
 
     @Override
     void validate(Target target, InjectionNodes.InjectionNode node) {
-        if (!paramType.equals(JUMP_INFO_TYPE)) {
-            throw new IllegalStateException("@BreakLoop sugar has the wrong type! Expected " + JUMP_INFO_TYPE.getClassName() + " but got " + paramType.getClassName());
-        }
-    }
+        super.validate(target, node);
 
-    @Override
-    void prepare(Target target, InjectionNodes.InjectionNode node) {
+        // done in validate since jump locals/stack values need jumpTarget for their validation
         List<LabelNode> passedLabels = new ArrayList<>();
         List<Loop> loops = new ArrayList<>();
 
@@ -73,6 +69,6 @@ class BreakLoopSugarApplicator extends AbstractJumpSugarApplicator {
         }
 
         Loop loop = loopStack.get(loopStack.size() - 1 - depth);
-        setJumpTarget(loop.endLabel, target);
+        getPerTarget(target, node).setJumpTarget(loop.endLabel, target);
     }
 }

@@ -1,8 +1,8 @@
 package com.llamalad7.mixinextras.sugar.ref.jump;
 
 /**
- * @see JumpLocal
+ * @see StackRef
  */
-public interface BooleanJumpLocal {
+public interface BooleanStackRef {
     void set(boolean value);
 }

@@ -12,9 +12,11 @@ import java.util.List;
 
 public class ShareType {
     private final Type innerType;
+    private final String refImpl;
 
     public ShareType(Type innerType) {
         this.innerType = innerType;
+        refImpl = LocalRefClassGenerator.getForType(innerType);
     }
 
     public Type getInnerType() {
@@ -22,16 +24,16 @@ public class ShareType {
     }
 
     public Type getImplType() {
-        return Type.getObjectType(LocalRefClassGenerator.getForType(innerType));
+        return Type.getObjectType(refImpl);
     }
 
     public InsnList initialize(int lvtIndex) {
         InsnList init = new InsnList();
-        LocalRefUtils.generateNew(init, innerType);
+        LocalRefUtils.generateNew(init, refImpl);
         init.add(new VarInsnNode(Opcodes.ASTORE, lvtIndex));
         init.add(new VarInsnNode(Opcodes.ALOAD, lvtIndex));
         init.add(new InsnNode(ASMUtils.getDummyOpcodeForType(innerType)));
-        LocalRefUtils.generateInitialization(init, innerType);
+        LocalRefUtils.generateInitialization(init, innerType, refImpl);
         return init;
     }
 
@@ -40,7 +42,7 @@ public class ShareType {
         target.insns.insert(start);
         LabelNode end = new LabelNode();
         target.insns.add(end);
-        Type implType = Type.getObjectType(LocalRefClassGenerator.getForType(innerType));
+        Type implType = Type.getObjectType(refImpl);
 
         target.addLocalVariable(lvtIndex, "sharedRef" + lvtIndex, implType.getDescriptor());
         List<LocalVariableNode> lvt = target.method.localVariables;

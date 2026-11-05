@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.CLASS)
-public @interface Stack {
+public @interface JumpStack {
     /**
      * The index in the stack where the value should be set.
      */

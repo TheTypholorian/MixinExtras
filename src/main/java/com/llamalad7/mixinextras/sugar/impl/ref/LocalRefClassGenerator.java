@@ -170,8 +170,9 @@ public class LocalRefClassGenerator {
             Label passed = new Label();
             code.ifeq(passed);
             code.load(0, objectType);
+            code.load(0, objectType);
             code.getfield(owner, "state", "B");
-            code.invokestatic(runtime, "checkStateJump", "(B)V", false);
+            code.invokestatic(runtime, "checkStateJump", "(Ljava/lang/Object;B)V", false);
             code.mark(passed);
         };
 
@@ -185,7 +186,6 @@ public class LocalRefClassGenerator {
         });
 
         genMethod(node, "set", "(" + innerDesc + ")V", code -> {
-            checkState.accept(code);
             code.load(0, objectType);
             code.load(1, innerType);
             code.putfield(owner, "value", innerDesc);

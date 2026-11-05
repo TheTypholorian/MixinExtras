@@ -37,13 +37,13 @@ public class LocalRefRuntime {
     /**
      * 0 means OK since it's the fastest to check
      */
-    public static void checkStateJump(byte state) {
+    public static void checkStateJump(Object jumpLocal, byte state) {
         switch (state) {
             case 0:
                 return;
             case UNINITIALIZED:
                 throw new IllegalStateException(
-                        "Value of local ref has not been set"
+                        "Value of jump local " + jumpLocal + " has not been set"
                 );
             case DISPOSED:
                 throw new IllegalStateException(

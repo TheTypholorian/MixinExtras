@@ -6,13 +6,16 @@ import com.llamalad7.mixinextras.utils.Decorations;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.*;
-import org.spongepowered.asm.mixin.injection.struct.InjectionInfo;
 import org.spongepowered.asm.mixin.injection.struct.InjectionNodes.InjectionNode;
 import org.spongepowered.asm.mixin.injection.struct.Target;
 
 class CancellableSugarApplicator extends SugarApplicator {
     CancellableSugarApplicator(SugarInjector parent, SugarParameter parameter) {
         super(parent, parameter);
+    }
+
+    @Override
+    void init() {
     }
 
     @Override
@@ -24,7 +27,7 @@ class CancellableSugarApplicator extends SugarApplicator {
     }
 
     @Override
-    void inject(Target target, InjectionNode node, StackExtension stack) {
+    void inject(Target target, InjectionNode node, InjectionNode oldNode, StackExtension stack) {
         Type ciType = Type.getObjectType(target.getCallbackInfoClass());
         if (!ciType.equals(paramType)) {
             throw new IllegalStateException(

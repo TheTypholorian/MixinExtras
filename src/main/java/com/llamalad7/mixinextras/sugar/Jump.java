@@ -60,7 +60,7 @@ import java.lang.annotation.Target;
  * }
  * }</pre>
  * There will only be <bold>one</bold> {@code methodA} call in the bytecode (regardless of what decompilers say).<br>
- * When locals or stack values at the jump target need adjustment, use a Local or Stack sugar with {@link Local#jump()}/{@link Stack#jump()} = [0-based index of this jump according to the injector argument order].
+ * When locals or stack values at the jump target need adjustment, use a Local or Stack sugar with {@link Local#jump()}/{@link JumpStack#jump()} = [0-based index of this jump according to the injector argument order].
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.CLASS)

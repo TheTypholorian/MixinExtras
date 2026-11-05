@@ -3,6 +3,7 @@ package com.llamalad7.mixinextras.sugar.impl;
 import com.llamalad7.mixinextras.injector.StackExtension;
 import com.llamalad7.mixinextras.sugar.impl.jump.JumpInfoImpl;
 import com.llamalad7.mixinextras.sugar.jump.JumpInfo;
+import org.apache.commons.lang3.tuple.Pair;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.*;
@@ -21,23 +22,87 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
     public static final Type JUMP_INFO_TYPE = Type.getType(JumpInfo.class);
     public static final Type JUMP_INFO_IMPL_TYPE = Type.getType(JumpInfoImpl.class);
 
-    // TODO this needs to be per-target
-    protected final List<LocalSugarApplicator> locals = new ArrayList<>();
-    protected final Map<Integer, InsnList> stack = new HashMap<>();
-    protected InjectionNodes.InjectionNode jumpTarget;
-    protected Frame<BasicValue> sourceFrame, targetFrame;
+    static class PerTarget {
+        final List<InsnList> locals = new ArrayList<>();
+        final Map<Integer, InsnList> stack = new HashMap<>();
+        InjectionNodes.InjectionNode jumpTarget;
+        Frame<BasicValue> sourceFrame, targetFrame;
+
+        protected void setJumpTarget(AbstractInsnNode insn, Target target) {
+            if (!(insn instanceof LabelNode)) {
+                LabelNode label = new LabelNode();
+                target.method.instructions.insertBefore(insn, label);
+                insn = label;
+            }
+
+            jumpTarget = target.addInjectionNode(insn);
+        }
+
+        protected void ensureFramesInitialized(Target target, InjectionNodes.InjectionNode node) {
+            if (sourceFrame == null || targetFrame == null) {
+                if (jumpTarget == null) {
+                    throw new SugarApplicationException("Jump target has not been initialized, this is a bug.");
+                }
+
+                Frame<BasicValue>[] frames = analyze(target);
+
+                targetFrame = frames[target.insns.indexOf(jumpTarget.getCurrentTarget())];
+                sourceFrame = frames[target.insns.indexOf(node.getCurrentTarget()) + 1];
+
+                for (int i = targetFrame.getStackSize() - 1; i >= 0; i--) {
+                    BasicValue value = targetFrame.getStack(i);
+
+                    if (value.equals(BasicValue.UNINITIALIZED_VALUE)) {
+                        throw new SugarApplicationException("Cannot jump to a target with uninitialized objects on the stack (ex. constructors). Set shiftBeforeStack to true in the Jump sugar to fix this.");
+                    }
+                }
+            }
+        }
+    }
+
+    final Map<Target, List<Pair<InjectionNodes.InjectionNode, PerTarget>>> perTarget = new HashMap<>();
 
     AbstractJumpSugarApplicator(SugarInjector parent, SugarParameter parameter) {
         super(parent, parameter);
     }
 
-    @Override
-    int postProcessingPriority() {
-        // We want to be after Locals so mutable refs are disposed before jumps
-        return 10000;
+    PerTarget getPerTarget(Target target, InjectionNodes.InjectionNode node) {
+        List<Pair<InjectionNodes.InjectionNode, PerTarget>> list = perTarget.computeIfAbsent(target, key -> new ArrayList<>());
+
+        for (Pair<InjectionNodes.InjectionNode, PerTarget> pair : list) {
+            if (pair.getKey() == node) {
+                return pair.getValue();
+            }
+        }
+
+        PerTarget n = new PerTarget();
+        list.add(Pair.of(node, n));
+        return n;
     }
 
-    protected Frame<BasicValue>[] analyze(Target target) {
+    // We want to inject before Locals so mutable refs are disposed before jumps
+    @Override
+    int postProcessingPriority() {
+        return 0;
+    }
+
+    // Initialize per target values before locals so locals can use them
+    @Override
+    int initPriority() {
+        return 0;
+    }
+
+    @Override
+    int validatePriority() {
+        return 0;
+    }
+
+    @Override
+    int preparePriority() {
+        return 0;
+    }
+
+    protected static Frame<BasicValue>[] analyze(Target target) {
         List<Type> interfaces = null;
         Type superType = null;
 
@@ -70,32 +135,27 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
         }
     }
 
-    protected void setJumpTarget(AbstractInsnNode insn, Target target) {
-        if (!(insn instanceof LabelNode)) {
-            LabelNode label = new LabelNode();
-            target.method.instructions.insertBefore(insn, label);
-            insn = label;
-        }
-
-        jumpTarget = target.addInjectionNode(insn);
+    @Override
+    void init() {
     }
 
     @Override
-    void inject(Target target, InjectionNodes.InjectionNode node, StackExtension stack) {
-        Frame<BasicValue>[] frames = analyze(target);
-
-        targetFrame = frames[target.insns.indexOf(jumpTarget.getCurrentTarget())];
-        sourceFrame = frames[target.insns.indexOf(node.getCurrentTarget()) + 1];
-
-        for (int i = targetFrame.getStackSize() - 1; i >= 0; i--) {
-            BasicValue value = targetFrame.getStack(i);
-
-            if (value.equals(BasicValue.UNINITIALIZED_VALUE)) {
-                throw new SugarApplicationException("Cannot jump to a target with uninitialized objects on the stack (ex. constructors). Set shiftBeforeStack to true in the Jump sugar to fix this.");
-            }
+    void validate(Target target, InjectionNodes.InjectionNode node) {
+        if (!paramType.equals(JUMP_INFO_TYPE)) {
+            throw new IllegalStateException("@Jump sugar has the wrong type! Expected " + JUMP_INFO_TYPE.getClassName() + " but got " + paramType.getClassName());
         }
+    }
 
-        LabelNode labelJumpTarget = (LabelNode) this.jumpTarget.getCurrentTarget();
+    @Override
+    void prepare(Target target, InjectionNodes.InjectionNode node) {
+    }
+
+    @Override
+    void inject(Target target, InjectionNodes.InjectionNode node, InjectionNodes.InjectionNode oldNode, StackExtension stack) {
+        PerTarget perTarget = getPerTarget(target, oldNode);
+        perTarget.ensureFramesInitialized(target, node);
+
+        LabelNode labelJumpTarget = (LabelNode) perTarget.jumpTarget.getCurrentTarget();
         int jumpInfoVar = target.allocateLocal();
         target.addLocalVariable(jumpInfoVar, "jumpInfo" + jumpInfoVar, JUMP_INFO_IMPL_TYPE.getDescriptor());
 
@@ -129,8 +189,8 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
             ));
             after.add(new JumpInsnNode(Opcodes.IFEQ, notJumped));
 
-            for (int i = sourceFrame.getStackSize() - 1; i >= 0; i--) {
-                BasicValue value = sourceFrame.getStack(i);
+            for (int i = perTarget.sourceFrame.getStackSize() - 1; i >= 0; i--) {
+                BasicValue value = perTarget.sourceFrame.getStack(i);
 
                 switch (value.getType().getSize()) {
                     case 1:
@@ -144,9 +204,9 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
                 }
             }
 
-            for (int i = targetFrame.getStackSize() - 1; i >= 0; i--) {
-                BasicValue value = targetFrame.getStack(i);
-                InsnList handler = this.stack.get(i);
+            for (int i = 0; i < perTarget.targetFrame.getStackSize(); i++) {
+                BasicValue value = perTarget.targetFrame.getStack(i);
+                InsnList handler = perTarget.stack.get(i);
 
                 if (handler != null) {
                     after.add(handler);
@@ -179,8 +239,8 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
                 }
             }
 
-            for (LocalSugarApplicator local : locals) {
-                after.add(local.createDisposal());
+            for (InsnList local : perTarget.locals) {
+                after.add(local);
             }
 
             after.add(new JumpInsnNode(Opcodes.GOTO, labelJumpTarget));

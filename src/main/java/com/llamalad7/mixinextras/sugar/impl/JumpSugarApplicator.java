@@ -1,14 +1,11 @@
 package com.llamalad7.mixinextras.sugar.impl;
 
 import com.llamalad7.mixinextras.utils.CompatibilityHelper;
-import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Frame;
 import org.spongepowered.asm.mixin.injection.InjectionPoint;
-import org.spongepowered.asm.mixin.injection.modify.LocalVariableDiscriminator;
-import org.spongepowered.asm.mixin.injection.struct.InjectionInfo;
 import org.spongepowered.asm.mixin.injection.struct.InjectionNodes;
 import org.spongepowered.asm.mixin.injection.struct.Target;
 import org.spongepowered.asm.util.Annotations;
@@ -17,19 +14,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 class JumpSugarApplicator extends AbstractJumpSugarApplicator {
-    JumpSugarApplicator(InjectionInfo info, SugarParameter parameter) {
-        super(info, parameter);
+    JumpSugarApplicator(SugarInjector parent, SugarParameter parameter) {
+        super(parent, parameter);
     }
 
     @Override
     void validate(Target target, InjectionNodes.InjectionNode node) {
-        if (!paramType.equals(JUMP_INFO_TYPE)) {
-            throw new IllegalStateException("@Jump sugar has the wrong type! Expected " + JUMP_INFO_TYPE.getClassName() + " but got " + paramType.getClassName());
-        }
-    }
+        super.validate(target, node);
 
-    @Override
-    void prepare(Target target, InjectionNodes.InjectionNode node) {
+        // done in validate since jump locals/stack values need jumpTarget for their validation
         InjectionPoint injectionPoint = InjectionPoint.parse(CompatibilityHelper.getMixin(info), target.method, sugar, Annotations.<AnnotationNode>getValue(sugar, "value"));
         List<AbstractInsnNode> targets = new ArrayList<>();
         injectionPoint.find(target.method.desc, target.method.instructions, targets);
@@ -50,6 +43,6 @@ class JumpSugarApplicator extends AbstractJumpSugarApplicator {
             }
         }
 
-        setJumpTarget(targetNode, target);
+        getPerTarget(target, node).setJumpTarget(targetNode, target);
     }
 }
