@@ -11,8 +11,8 @@ import org.spongepowered.asm.mixin.injection.struct.InjectionNodes.InjectionNode
 import org.spongepowered.asm.mixin.injection.struct.Target;
 
 class CancellableSugarApplicator extends SugarApplicator {
-    CancellableSugarApplicator(InjectionInfo info, SugarParameter parameter) {
-        super(info, parameter);
+    CancellableSugarApplicator(SugarInjector parent, SugarParameter parameter) {
+        super(parent, parameter);
     }
 
     @Override

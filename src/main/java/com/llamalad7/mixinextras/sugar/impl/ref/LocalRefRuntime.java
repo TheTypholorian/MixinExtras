@@ -34,6 +34,30 @@ public class LocalRefRuntime {
         }
     }
 
+    /**
+     * 0 means OK since it's the fastest to check
+     */
+    public static void checkStateJump(byte state) {
+        switch (state) {
+            case 0:
+                return;
+            case UNINITIALIZED:
+                throw new IllegalStateException(
+                        "Value of local ref has not been set"
+                );
+            case DISPOSED:
+                throw new IllegalStateException(
+                        "Use of a disposed LocalRef! You cannot retain these objects past the handler method they " +
+                                "were passed to. If you don't think this applies to you then please report your " +
+                                "issue to LlamaLad7 as it may be a bug."
+                );
+            default:
+                throw new IllegalStateException(
+                        String.format("Unknown LocalRef state %s?", state)
+                );
+        }
+    }
+
     public static String localRefToString(String type, String value, byte state) {
         switch (state) {
             case 0:

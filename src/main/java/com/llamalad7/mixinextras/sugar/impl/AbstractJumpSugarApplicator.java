@@ -1,10 +1,8 @@
 package com.llamalad7.mixinextras.sugar.impl;
 
 import com.llamalad7.mixinextras.injector.StackExtension;
-import com.llamalad7.mixinextras.sugar.impl.jump.JumpInfoComplexImpl;
 import com.llamalad7.mixinextras.sugar.impl.jump.JumpInfoImpl;
 import com.llamalad7.mixinextras.sugar.jump.JumpInfo;
-import com.llamalad7.mixinextras.utils.CompatibilityHelper;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.*;
@@ -12,8 +10,6 @@ import org.objectweb.asm.tree.analysis.Analyzer;
 import org.objectweb.asm.tree.analysis.AnalyzerException;
 import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Frame;
-import org.spongepowered.asm.mixin.injection.modify.LocalVariableDiscriminator;
-import org.spongepowered.asm.mixin.injection.struct.InjectionInfo;
 import org.spongepowered.asm.mixin.injection.struct.InjectionNodes;
 import org.spongepowered.asm.mixin.injection.struct.Target;
 import org.spongepowered.asm.util.asm.ASM;
@@ -24,52 +20,21 @@ import java.util.*;
 abstract class AbstractJumpSugarApplicator extends SugarApplicator {
     public static final Type JUMP_INFO_TYPE = Type.getType(JumpInfo.class);
     public static final Type JUMP_INFO_IMPL_TYPE = Type.getType(JumpInfoImpl.class);
-    public static final Type JUMP_INFO_COMPLEX_TYPE = Type.getType(JumpInfoComplex.class);
-    public static final Type JUMP_INFO_COMPLEX_IMPL_TYPE = Type.getType(JumpInfoComplexImpl.class);
 
-    protected final static class Local {
-        public final Type type;
-        public final LocalVariableDiscriminator discriminator;
-
-        protected Local(Type type, LocalVariableDiscriminator discriminator) {
-            this.type = type;
-            this.discriminator = discriminator;
-        }
-    }
-
-    protected final static class LocalContextKey {
-        public final Type type;
-        public final boolean argsOnly;
-
-        protected LocalContextKey(Type type, boolean argsOnly) {
-            this.type = type;
-            this.argsOnly = argsOnly;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (o == null || getClass() != o.getClass()) return false;
-            LocalContextKey that = (LocalContextKey) o;
-            return argsOnly == that.argsOnly && Objects.equals(type, that.type);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(type, argsOnly);
-        }
-    }
-
+    // TODO this needs to be per-target
+    protected final List<LocalSugarApplicator> locals = new ArrayList<>();
+    protected final Map<Integer, InsnList> stack = new HashMap<>();
     protected InjectionNodes.InjectionNode jumpTarget;
-    protected final List<Local> localsToModify = new ArrayList<>();
     protected Frame<BasicValue> sourceFrame, targetFrame;
 
-    AbstractJumpSugarApplicator(InjectionInfo info, SugarParameter parameter) {
-        super(info, parameter);
+    AbstractJumpSugarApplicator(SugarInjector parent, SugarParameter parameter) {
+        super(parent, parameter);
     }
 
     @Override
     int postProcessingPriority() {
-        return 1000; // TODO run after locals
+        // We want to be after Locals so mutable refs are disposed before jumps
+        return 10000;
     }
 
     protected Frame<BasicValue>[] analyze(Target target) {
@@ -122,52 +87,29 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
         targetFrame = frames[target.insns.indexOf(jumpTarget.getCurrentTarget())];
         sourceFrame = frames[target.insns.indexOf(node.getCurrentTarget()) + 1];
 
-        boolean complex = paramType.equals(JUMP_INFO_COMPLEX_TYPE);
-        Type jumpInfoImplType = complex ? JUMP_INFO_COMPLEX_IMPL_TYPE : JUMP_INFO_IMPL_TYPE;
+        for (int i = targetFrame.getStackSize() - 1; i >= 0; i--) {
+            BasicValue value = targetFrame.getStack(i);
 
-        if (!localsToModify.isEmpty() && !complex) {
-            throw new IllegalStateException("Specified locals to modify in jump annotation but the sugar argument isn't a JumpInfoComplex");
-        }
-
-        if (targetFrame.getStackSize() != 0 && !complex) {
-            StringBuilder sb = new StringBuilder();
-
-            for (int i = 0; i < targetFrame.getStackSize(); i++) {
-                sb.append(targetFrame.getStack(i));
+            if (value.equals(BasicValue.UNINITIALIZED_VALUE)) {
+                throw new SugarApplicationException("Cannot jump to a target with uninitialized objects on the stack (ex. constructors). Set shiftBeforeStack to true in the Jump sugar to fix this.");
             }
-
-            throw new IllegalStateException("Jump target has an unhandled stack of " + sb + " but no stack handling is set. Add 'shiftBeforeStack = true' in your @Jump annotation, or change the sugar type to JumpHandleComplex and set stack values through it.");
         }
 
         LabelNode labelJumpTarget = (LabelNode) this.jumpTarget.getCurrentTarget();
         int jumpInfoVar = target.allocateLocal();
-        target.addLocalVariable(jumpInfoVar, "jumpInfo" + jumpInfoVar, jumpInfoImplType.getDescriptor());
+        target.addLocalVariable(jumpInfoVar, "jumpInfo" + jumpInfoVar, JUMP_INFO_IMPL_TYPE.getDescriptor());
 
         stack.extra(2);
         InsnList before = new InsnList();
-        before.add(new TypeInsnNode(Opcodes.NEW, jumpInfoImplType.getInternalName()));
+        before.add(new TypeInsnNode(Opcodes.NEW, JUMP_INFO_IMPL_TYPE.getInternalName()));
         before.add(new InsnNode(Opcodes.DUP));
-
-        if (complex) {
-            before.add(new LdcInsnNode(localsToModify.size()));
-            before.add(new LdcInsnNode(targetFrame.getStackSize()));
-            before.add(new MethodInsnNode(
-                    Opcodes.INVOKESPECIAL,
-                    jumpInfoImplType.getInternalName(),
-                    "<init>",
-                    "(II)V",
-                    false
-            ));
-        } else {
-            before.add(new MethodInsnNode(
-                    Opcodes.INVOKESPECIAL,
-                    jumpInfoImplType.getInternalName(),
-                    "<init>",
-                    "()V",
-                    false
-            ));
-        }
-
+        before.add(new MethodInsnNode(
+                Opcodes.INVOKESPECIAL,
+                JUMP_INFO_IMPL_TYPE.getInternalName(),
+                "<init>",
+                "()V",
+                false
+        ));
         before.add(new VarInsnNode(Opcodes.ASTORE, jumpInfoVar));
         before.add(new VarInsnNode(Opcodes.ALOAD, jumpInfoVar));
         target.insertBefore(node, before);
@@ -180,7 +122,7 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
             after.add(new VarInsnNode(Opcodes.ALOAD, jumpInfoVar));
             after.add(new MethodInsnNode(
                     Opcodes.INVOKEVIRTUAL,
-                    jumpInfoImplType.getInternalName(),
+                    JUMP_INFO_IMPL_TYPE.getInternalName(),
                     "willJump",
                     "()Z",
                     false
@@ -190,160 +132,55 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
             for (int i = sourceFrame.getStackSize() - 1; i >= 0; i--) {
                 BasicValue value = sourceFrame.getStack(i);
 
-                if (!value.equals(BasicValue.UNINITIALIZED_VALUE)) {
-                    switch (value.getType().getSize()) {
-                        case 1:
-                            System.out.println("Popping 1 " + value);
-                            after.add(new InsnNode(Opcodes.POP));
+                switch (value.getType().getSize()) {
+                    case 1:
+                        after.add(new InsnNode(Opcodes.POP));
+                        break;
+                    case 2:
+                        after.add(new InsnNode(Opcodes.POP2));
+                        break;
+                    default:
+                        throw new AssertionError();
+                }
+            }
+
+            for (int i = targetFrame.getStackSize() - 1; i >= 0; i--) {
+                BasicValue value = targetFrame.getStack(i);
+                InsnList handler = this.stack.get(i);
+
+                if (handler != null) {
+                    after.add(handler);
+                } else {
+                    switch (value.getType().getSort()) {
+                        case Type.BOOLEAN:
+                        case Type.CHAR:
+                        case Type.BYTE:
+                        case Type.SHORT:
+                        case Type.INT:
+                            after.add(new InsnNode(Opcodes.ICONST_0));
                             break;
-                        case 2:
-                            System.out.println("Popping 2 " + value);
-                            after.add(new InsnNode(Opcodes.POP2));
+
+                        case Type.LONG:
+                            after.add(new InsnNode(Opcodes.LCONST_0));
                             break;
+
+                        case Type.FLOAT:
+                            after.add(new InsnNode(Opcodes.FCONST_0));
+                            break;
+
+                        case Type.DOUBLE:
+                            after.add(new InsnNode(Opcodes.DCONST_0));
+                            break;
+
                         default:
-                            throw new AssertionError();
+                            after.add(new InsnNode(Opcodes.ACONST_NULL));
+                            break;
                     }
                 }
             }
 
-            if (complex) {
-                if (!localsToModify.isEmpty()) {
-                    Map<LocalContextKey, LocalVariableDiscriminator.Context> contexts = new HashMap<>();
-                    int id = 0;
-                    Set<Integer> indices = new HashSet<>();
-
-                    for (Local local : localsToModify) {
-                        LocalVariableDiscriminator.Context context = contexts.computeIfAbsent(new LocalContextKey(local.type, local.discriminator.isArgsOnly()), key -> CompatibilityHelper.makeLvtContext(info, key.type, key.argsOnly, target, labelJumpTarget));
-                        int localVar = local.discriminator.findLocal(context);
-
-                        if (!indices.add(localVar)) {
-                            throw new IllegalStateException("Specified the same local to modify more than once in jump");
-                        }
-
-                        stack.extra(1);
-                        after.add(new VarInsnNode(Opcodes.ALOAD, jumpInfoVar));
-                        after.add(new LdcInsnNode(id++));
-
-                        switch (local.type.getSort()) {
-                            case Type.BOOLEAN:
-                            case Type.BYTE:
-                            case Type.CHAR:
-                            case Type.SHORT:
-                            case Type.INT:
-                                after.add(new MethodInsnNode(
-                                        Opcodes.INVOKEVIRTUAL,
-                                        jumpInfoImplType.getInternalName(),
-                                        "localInt",
-                                        "(I)I",
-                                        false
-                                ));
-                                after.add(new VarInsnNode(Opcodes.ISTORE, localVar));
-                                break;
-                            case Type.LONG:
-                                after.add(new MethodInsnNode(
-                                        Opcodes.INVOKEVIRTUAL,
-                                        jumpInfoImplType.getInternalName(),
-                                        "localLong",
-                                        "(I)J",
-                                        false
-                                ));
-                                after.add(new VarInsnNode(Opcodes.LSTORE, localVar));
-                                break;
-                            case Type.FLOAT:
-                                after.add(new MethodInsnNode(
-                                        Opcodes.INVOKEVIRTUAL,
-                                        jumpInfoImplType.getInternalName(),
-                                        "localFloat",
-                                        "(I)F",
-                                        false
-                                ));
-                                after.add(new VarInsnNode(Opcodes.FSTORE, localVar));
-                                break;
-                            case Type.DOUBLE:
-                                after.add(new MethodInsnNode(
-                                        Opcodes.INVOKEVIRTUAL,
-                                        jumpInfoImplType.getInternalName(),
-                                        "localDouble",
-                                        "(I)D",
-                                        false
-                                ));
-                                after.add(new VarInsnNode(Opcodes.DSTORE, localVar));
-                                break;
-                            default:
-                                after.add(new MethodInsnNode(
-                                        Opcodes.INVOKEVIRTUAL,
-                                        jumpInfoImplType.getInternalName(),
-                                        "localObject",
-                                        "(I)Ljava/lang/Object;",
-                                        false
-                                ));
-                                after.add(new TypeInsnNode(Opcodes.CHECKCAST, local.type.getInternalName()));
-                                after.add(new VarInsnNode(Opcodes.ASTORE, localVar));
-                                break;
-                        }
-                    }
-                }
-
-                for (int i = 0; i < targetFrame.getStackSize(); i++) {
-                    BasicValue expected = targetFrame.getStack(i);
-
-                    stack.extra(1);
-                    after.add(new VarInsnNode(Opcodes.ALOAD, jumpInfoVar));
-                    after.add(new LdcInsnNode(i));
-
-                    switch (expected.getType().getSort()) {
-                        case Type.BOOLEAN:
-                        case Type.BYTE:
-                        case Type.CHAR:
-                        case Type.SHORT:
-                        case Type.INT:
-                            after.add(new MethodInsnNode(
-                                    Opcodes.INVOKEVIRTUAL,
-                                    jumpInfoImplType.getInternalName(),
-                                    "stackInt",
-                                    "(I)I",
-                                    false
-                            ));
-                            break;
-                        case Type.LONG:
-                            after.add(new MethodInsnNode(
-                                    Opcodes.INVOKEVIRTUAL,
-                                    jumpInfoImplType.getInternalName(),
-                                    "stackLong",
-                                    "(I)J",
-                                    false
-                            ));
-                            break;
-                        case Type.FLOAT:
-                            after.add(new MethodInsnNode(
-                                    Opcodes.INVOKEVIRTUAL,
-                                    jumpInfoImplType.getInternalName(),
-                                    "stackFloat",
-                                    "(I)F",
-                                    false
-                            ));
-                            break;
-                        case Type.DOUBLE:
-                            after.add(new MethodInsnNode(
-                                    Opcodes.INVOKEVIRTUAL,
-                                    jumpInfoImplType.getInternalName(),
-                                    "stackDouble",
-                                    "(I)D",
-                                    false
-                            ));
-                            break;
-                        default:
-                            after.add(new MethodInsnNode(
-                                    Opcodes.INVOKEVIRTUAL,
-                                    jumpInfoImplType.getInternalName(),
-                                    "stackObject",
-                                    "(I)Ljava/lang/Object;",
-                                    false
-                            ));
-                            after.add(new TypeInsnNode(Opcodes.CHECKCAST, expected.getType().getInternalName()));
-                            break;
-                    }
-                }
+            for (LocalSugarApplicator local : locals) {
+                after.add(local.createDisposal());
             }
 
             after.add(new JumpInsnNode(Opcodes.GOTO, labelJumpTarget));

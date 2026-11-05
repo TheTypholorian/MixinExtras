@@ -1,6 +1,5 @@
 package com.llamalad7.mixinextras.sugar.impl;
 
-
 import com.llamalad7.mixinextras.wrapper.WrapperInjectionInfo;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.MethodNode;

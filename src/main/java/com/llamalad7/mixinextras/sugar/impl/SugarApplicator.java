@@ -39,6 +39,7 @@ abstract class SugarApplicator {
         }
     }
 
+    protected final SugarInjector parent;
     protected final IMixinInfo mixin;
     protected final InjectionInfo info;
     protected final AnnotationNode sugar;
@@ -47,9 +48,10 @@ abstract class SugarApplicator {
     protected final int paramLvtIndex;
     protected final int paramIndex;
 
-    SugarApplicator(InjectionInfo info, SugarParameter parameter) {
-        this.mixin = CompatibilityHelper.getMixin(info).getMixin();
-        this.info = info;
+    SugarApplicator(SugarInjector parent, SugarParameter parameter) {
+        this.parent = parent;
+        this.mixin = CompatibilityHelper.getMixin(parent.injectionInfo).getMixin();
+        this.info = parent.injectionInfo;
         this.sugar = parameter.sugar;
         this.paramType = parameter.type;
         this.paramGeneric = parameter.genericType;
@@ -72,11 +74,11 @@ abstract class SugarApplicator {
         );
     }
 
-    static SugarApplicator create(InjectionInfo info, SugarParameter parameter) {
+    static SugarApplicator create(SugarInjector parent, SugarParameter parameter) {
         try {
             Class<? extends SugarApplicator> clazz = MAP.get(parameter.sugar.desc);
-            Constructor<? extends SugarApplicator> ctor = clazz.getDeclaredConstructor(InjectionInfo.class, SugarParameter.class);
-            return ctor.newInstance(info, parameter);
+            Constructor<? extends SugarApplicator> ctor = clazz.getDeclaredConstructor(SugarInjector.class, SugarParameter.class);
+            return ctor.newInstance(parent, parameter);
         } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
             throw new RuntimeException(e);
         }

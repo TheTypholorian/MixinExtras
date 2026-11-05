@@ -29,20 +29,54 @@ public class LocalRefUtils {
         throw new IllegalStateException("Illegal descriptor " + type.getDescriptor());
     }
 
+    public static Class<?> getJumpInterfaceFor(Type type) {
+        if (!ASMUtils.isPrimitive(type)) {
+            return LocalRef.class;
+        }
+        switch (type.getDescriptor().charAt(0)) {
+            case 'Z': return LocalBooleanRef.class;
+            case 'B': return LocalByteRef.class;
+            case 'C': return LocalCharRef.class;
+            case 'S': return LocalShortRef.class;
+            case 'I': return LocalIntRef.class;
+            case 'J': return LocalLongRef.class;
+            case 'F': return LocalFloatRef.class;
+            case 'D': return LocalDoubleRef.class;
+        }
+        throw new IllegalStateException("Illegal descriptor " + type.getDescriptor());
+    }
+
     public static Type getTargetType(Type type, Type generic) {
         if (type.getSort() != Type.OBJECT || !MixinExtrasService.getInstance().isClassOwned(type.getClassName())) {
             return type;
         }
         switch (StringUtils.substringAfterLast(type.getInternalName(), "/")) {
-            case "LocalBooleanRef": return Type.BOOLEAN_TYPE;
-            case "LocalByteRef": return Type.BYTE_TYPE;
-            case "LocalCharRef": return Type.CHAR_TYPE;
-            case "LocalDoubleRef": return Type.DOUBLE_TYPE;
-            case "LocalFloatRef": return Type.FLOAT_TYPE;
-            case "LocalIntRef": return Type.INT_TYPE;
-            case "LocalLongRef": return Type.LONG_TYPE;
-            case "LocalShortRef": return Type.SHORT_TYPE;
+            case "LocalBooleanRef":
+            case "BooleanJumpLocal":
+                return Type.BOOLEAN_TYPE;
+            case "LocalByteRef":
+            case "ByteJumpLocal":
+                return Type.BYTE_TYPE;
+            case "LocalCharRef":
+            case "CharJumpLocal":
+                return Type.CHAR_TYPE;
+            case "LocalDoubleRef":
+            case "DoubleJumpLocal":
+                return Type.DOUBLE_TYPE;
+            case "LocalFloatRef":
+            case "FloatJumpLocal":
+                return Type.FLOAT_TYPE;
+            case "LocalIntRef":
+            case "IntJumpLocal":
+                return Type.INT_TYPE;
+            case "LocalLongRef":
+            case "LongJumpLocal":
+                return Type.LONG_TYPE;
+            case "LocalShortRef":
+            case "ShortJumpLocal":
+                return Type.SHORT_TYPE;
             case "LocalRef":
+            case "JumpLocal":
                 if (generic == null) {
                     throw new IllegalStateException("LocalRef must have a concrete type argument!");
                 }
@@ -102,6 +136,47 @@ public class LocalRefUtils {
                 "get",
                 Type.getMethodDescriptor(getErasedType(innerType)),
                 true
+        ));
+        if (!ASMUtils.isPrimitive(innerType)) {
+            insns.add(new TypeInsnNode(Opcodes.CHECKCAST, innerType.getInternalName()));
+        }
+    }
+
+    public static void generateNewForJump(InsnList insns, Type innerType) {
+        String refImpl = LocalRefClassGenerator.getForJumpType(innerType);
+
+        insns.add(new TypeInsnNode(Opcodes.NEW, refImpl));
+        insns.add(new InsnNode(Opcodes.DUP));
+        insns.add(new MethodInsnNode(
+                Opcodes.INVOKESPECIAL,
+                refImpl,
+                "<init>",
+                "()V",
+                false
+        ));
+    }
+
+    public static void generateInitializationForJump(InsnList insns, Type innerType) {
+        String refImpl = LocalRefClassGenerator.getForJumpType(innerType);
+
+        insns.add(new MethodInsnNode(
+                Opcodes.INVOKEVIRTUAL,
+                refImpl,
+                "init",
+                Type.getMethodDescriptor(Type.VOID_TYPE, getErasedType(innerType)),
+                false
+        ));
+    }
+
+    public static void generateDisposalForJump(InsnList insns, Type innerType) {
+        String refImpl = LocalRefClassGenerator.getForJumpType(innerType);
+
+        insns.add(new MethodInsnNode(
+                Opcodes.INVOKEVIRTUAL,
+                refImpl,
+                "dispose",
+                Type.getMethodDescriptor(getErasedType(innerType)),
+                false
         ));
         if (!ASMUtils.isPrimitive(innerType)) {
             insns.add(new TypeInsnNode(Opcodes.CHECKCAST, innerType.getInternalName()));

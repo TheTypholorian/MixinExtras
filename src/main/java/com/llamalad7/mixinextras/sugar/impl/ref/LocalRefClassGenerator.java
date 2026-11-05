@@ -129,6 +129,95 @@ public class LocalRefClassGenerator {
         });
     }
 
+    public static String getForJumpType(Type type) {
+        Class<?> refInterface = LocalRefUtils.getJumpInterfaceFor(type);
+        String owner = interfaceToImpl.get(refInterface);
+        if (owner != null) {
+            return owner;
+        }
+        owner = IMPL_PACKAGE + '/' + StringUtils.substringAfterLast(refInterface.getName(), ".") + "Impl";
+        String desc = type.getDescriptor();
+        String innerDesc = desc.length() == 1 ? desc : Type.getDescriptor(Object.class);
+        interfaceToImpl.put(refInterface, owner);
+        ClassNode node = new ClassNode();
+        node.visit(
+                Opcodes.V1_8,
+                Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER | Opcodes.ACC_FINAL,
+                owner,
+                null,
+                Type.getInternalName(Object.class),
+                null
+        );
+        generateJumpClass(node, owner, innerDesc, refInterface.getName());
+        ClassGenUtils.defineClass(node, GeneratedImplDummy.getLookup());
+        return owner;
+    }
+
+    private static void generateJumpClass(ClassNode node, String owner, String innerDesc, String interfaceName) {
+        Type objectType = ASMUtils.OBJECT_TYPE;
+        Type innerType = Type.getType(innerDesc);
+
+        for (String name : MixinExtrasService.getInstance().getAllClassNamesAtLeast(interfaceName, MixinExtrasVersion.V0_2_0_BETA_5)) {
+            node.interfaces.add(name.replace('.', '/'));
+        }
+        node.visitField(Opcodes.ACC_PRIVATE, "value", innerDesc, null, null);
+        node.visitField(Opcodes.ACC_PRIVATE, "state", "B", null, null);
+
+        Consumer<InstructionAdapter> checkState = code -> {
+            String runtime = Type.getInternalName(LocalRefRuntime.class);
+            code.load(0, objectType);
+            code.getfield(owner, "state", "B");
+            Label passed = new Label();
+            code.ifeq(passed);
+            code.load(0, objectType);
+            code.getfield(owner, "state", "B");
+            code.invokestatic(runtime, "checkStateJump", "(B)V", false);
+            code.mark(passed);
+        };
+
+        genMethod(node, "<init>", "()V", code -> {
+            code.load(0, objectType);
+            code.invokespecial(objectType.getInternalName(), "<init>", "()V", false);
+            code.load(0, objectType);
+            code.iconst(LocalRefRuntime.UNINITIALIZED);
+            code.putfield(owner, "state", "B");
+            code.areturn(Type.VOID_TYPE);
+        });
+
+        genMethod(node, "set", "(" + innerDesc + ")V", code -> {
+            checkState.accept(code);
+            code.load(0, objectType);
+            code.load(1, innerType);
+            code.putfield(owner, "value", innerDesc);
+            code.load(0, objectType);
+            code.iconst(0);
+            code.putfield(owner, "state", "B");
+            code.areturn(Type.VOID_TYPE);
+        });
+
+        genMethod(node, "dispose", "()" + innerDesc, code -> {
+            checkState.accept(code);
+            code.load(0, objectType);
+            code.iconst(LocalRefRuntime.DISPOSED);
+            code.putfield(owner, "state", "B");
+            code.load(0, objectType);
+            code.getfield(owner, "value", innerDesc);
+            code.areturn(innerType);
+        });
+
+        genMethod(node, "toString", "()Ljava/lang/String;", code -> {
+            String runtime = Type.getInternalName(LocalRefRuntime.class);
+            code.aconst(interfaceName.substring(interfaceName.lastIndexOf('.') + 1));
+            code.load(0, objectType);
+            code.getfield(owner, "value", innerDesc);
+            code.invokestatic("java/lang/String", "valueOf", "(" + getToStringArgument(innerDesc) + ")Ljava/lang/String;", false);
+            code.load(0, objectType);
+            code.getfield(owner, "state", "B");
+            code.invokestatic(runtime, "localRefToString", "(Ljava/lang/String;Ljava/lang/String;B)Ljava/lang/String;", false);
+            code.areturn(Type.getType(String.class));
+        });
+    }
+
     private static String getToStringArgument(String innerDesc) {
         if ("B".equals(innerDesc) || "S".equals(innerDesc)) {
             return "I";

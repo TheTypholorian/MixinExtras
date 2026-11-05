@@ -33,7 +33,7 @@ public class SugarWrapperImpl extends InjectorWrapperImpl {
     private final ArrayList<Type> generics;
     private final MethodNode handler;
     private final InjectionInfo delegate;
-    private final SugarInjector sugarInjector;
+    final SugarInjector sugarInjector;
 
     protected SugarWrapperImpl(InjectionInfo wrapper, MixinTargetContext mixin, MethodNode method, AnnotationNode annotation) {
         super(wrapper, mixin, method, annotation, true);

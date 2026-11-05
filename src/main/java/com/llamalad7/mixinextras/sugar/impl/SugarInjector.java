@@ -23,7 +23,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 class SugarInjector {
-    private final InjectionInfo injectionInfo;
+    final InjectionInfo injectionInfo;
     private final IMixinInfo mixin;
     private final MethodNode handler;
     private final List<AnnotationNode> sugarAnnotations;
@@ -162,9 +162,22 @@ class SugarInjector {
         prepareApplicators();
     }
 
+    @SuppressWarnings("unchecked")
+    <T extends SugarApplicator> List<T> getApplicators(Class<T> cls) {
+        List<T> list = new ArrayList<>();
+
+        for (SugarApplicator applicator : applicators) {
+            if (cls.isAssignableFrom(applicator.getClass())) {
+                list.add((T) applicator);
+            }
+        }
+
+        return list;
+    }
+
     private void makeApplicators() {
         for (SugarParameter sugar : strippedSugars) {
-            SugarApplicator applicator = SugarApplicator.create(injectionInfo, sugar);
+            SugarApplicator applicator = SugarApplicator.create(this, sugar);
             applicators.add(applicator);
         }
     }

@@ -23,8 +23,8 @@ class JumpSugarApplicator extends AbstractJumpSugarApplicator {
 
     @Override
     void validate(Target target, InjectionNodes.InjectionNode node) {
-        if (!(paramType.equals(JUMP_INFO_TYPE) || paramType.equals(JUMP_INFO_COMPLEX_TYPE))) {
-            throw new IllegalStateException("@Jump sugar has the wrong type! Expected " + JUMP_INFO_TYPE.getClassName() + " or " + JUMP_INFO_COMPLEX_TYPE.getClassName() + " but got " + paramType.getClassName());
+        if (!paramType.equals(JUMP_INFO_TYPE)) {
+            throw new IllegalStateException("@Jump sugar has the wrong type! Expected " + JUMP_INFO_TYPE.getClassName() + " but got " + paramType.getClassName());
         }
     }
 
@@ -39,11 +39,6 @@ class JumpSugarApplicator extends AbstractJumpSugarApplicator {
         }
 
         AbstractInsnNode targetNode = targets.get(0);
-        List<AnnotationNode> localsToModify = Annotations.getValue(sugar, "localsToModify", false);
-
-        for (AnnotationNode local : localsToModify) {
-            this.localsToModify.add(new Local(Annotations.getValue(local, "type", Type.VOID_TYPE), LocalVariableDiscriminator.parse(local)));
-        }
 
         if (Annotations.getValue(sugar, "shiftBeforeStack", Boolean.FALSE)) {
             Frame<BasicValue>[] frames = analyze(target);

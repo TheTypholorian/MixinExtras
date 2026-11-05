@@ -6,8 +6,8 @@ import org.spongepowered.asm.mixin.injection.struct.InjectionNodes;
 import org.spongepowered.asm.mixin.injection.struct.Target;
 
 class ShareSugarApplicator extends SugarApplicator {
-    ShareSugarApplicator(InjectionInfo info, SugarParameter parameter) {
-        super(info, parameter);
+    ShareSugarApplicator(SugarInjector parent, SugarParameter parameter) {
+        super(parent, parameter);
     }
 
     @Override

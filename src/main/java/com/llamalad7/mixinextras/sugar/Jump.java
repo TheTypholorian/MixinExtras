@@ -71,57 +71,6 @@ public @interface Jump {
      */
     At value();
     /**
-     * Number of locals (highest first) to modify at the jump target.<br>
-     * For example, take this code:
-     * <pre>{@code
-     * if (...) {
-     *     int i = 10;
-     *     float j = 5;
-     *     System.out.println(i + j);
-     * }
-     *
-     * someMethod();
-     * }</pre>
-     * If you jump from the `someMethod` call to the `println` call, the `i` and `j` local variables will be uninitialized, which is problematic.
-     * There are two ways to deal with this.
-     * Option 1 is to instead jump before the locals are initialized, and they will be set to their normal value (or whatever value is mixin'd in).<br>
-     * However, if you want a local to be a different value, then use `localsToModify`.
-     * Specify each local you want to modify, then use `JumpInfo$Complex.setLocal` to modify them (`setLocal` calls will be ignored unless the jump is invoked).
-     * Note that the indices for `setLocal` are indices into the `localsToModify` array.<br>
-     * Going back to the original example, your mixin would look like this for option 2:
-     * <pre>{@code
-     * @Inject(
-     *     method = "...",
-     *     at = @At(
-     *         value = "INVOKE",
-     *         target = "someMethod"
-     *     )
-     * )
-     * private void example(
-     *     CallbackInfo ci,
-     *     @Jump(
-     *         value = @At(
-     *             value = "INVOKE",
-     *             target = "Ljava/io/PrintStream;println(Ljava/lang/String;)V"
-     *         ),
-     *         shiftBeforeStack = true,
-     *         localsToModify = {
-     *             @Local(type = int.class),
-     *             @Local(type = float.class)
-     *         }
-     *     ) JumpInfoComplex jump // Note that this is a JumpInfoComplex type, as it has the setLocal and setStack methods.
-     * ) {
-     *     if (shouldJump) {
-     *         jump.jump();
-     *         jump.setLocal(0, <value for i>);
-     *         jump.setLocal(1, <value for j>);
-     *     }
-     * }
-     * }</pre>
-     * For compatibility, in the case that your code could have a local variable be the default or be a different value, it is good design to use two separate jumps (one with option 1 and another with option 2).
-     */
-    Local[] localsToModify() default {};
-    /**
      * If true, shifts the jump target back until the stack is empty.<br>
      * For example, take this code:
      * <pre>{@code
