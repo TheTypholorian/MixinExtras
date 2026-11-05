@@ -88,14 +88,6 @@ public @interface Jump {
      * // injection here
      * System.out.println("abc");
      * }</pre>
-     * If you had {@code shiftBeforeStack} set to false, then you would need to use a {@link JumpInfoComplex} and restate the stack values for {@code System.out} and {@code "abc"} in your mixin, like this:
-     * <pre>{@code
-     * complexHandle.jump();
-     * complexHandle.setStack(0, System.out);
-     * complexHandle.setStack(1, "abc");
-     * }</pre>
-     * which would ignore other mixins changing those values. The index parameter for `setStack` is lowest first.<br>
-     * Note that the above code can be used to combine a jump and a {@link org.spongepowered.asm.mixin.injection.ModifyArgs}, which might be useful in some cases.
      */
     boolean shiftBeforeStack() default false;
 }
