@@ -118,7 +118,7 @@ class LocalSugarApplicator extends SugarApplicator {
             disposal.add(new VarInsnNode(Opcodes.ALOAD, localRefIndex));
             LocalRefUtils.generateDisposal(disposal, targetLocalType, refImpl);
             disposal.add(new VarInsnNode(targetLocalType.getOpcode(Opcodes.ISTORE), localIndex));
-            perTarget.locals.add(disposal);
+            perTarget.locals.put(localIndex, disposal);
         }
     }
 

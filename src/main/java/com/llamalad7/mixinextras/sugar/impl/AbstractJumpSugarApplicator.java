@@ -23,7 +23,7 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
     public static final Type JUMP_INFO_IMPL_TYPE = Type.getType(JumpInfoImpl.class);
 
     static class PerTarget {
-        final List<InsnList> locals = new ArrayList<>();
+        final Map<Integer, InsnList> locals = new HashMap<>();
         final Map<Integer, InsnList> stack = new HashMap<>();
         InjectionNodes.InjectionNode jumpTarget;
         Frame<BasicValue> sourceFrame, targetFrame;
@@ -204,6 +204,46 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
                 }
             }
 
+            for (int i = 0; i < perTarget.targetFrame.getLocals(); i++) {
+                BasicValue value = perTarget.targetFrame.getLocal(i);
+                InsnList handler = perTarget.locals.get(i);
+
+                if (handler != null) {
+                    after.add(handler);
+                } else {
+                    switch (value.getType().getSort()) {
+                        case Type.BOOLEAN:
+                        case Type.CHAR:
+                        case Type.BYTE:
+                        case Type.SHORT:
+                        case Type.INT:
+                            after.add(new InsnNode(Opcodes.ICONST_0));
+                            after.add(new VarInsnNode(Opcodes.ISTORE, i));
+                            break;
+
+                        case Type.LONG:
+                            after.add(new InsnNode(Opcodes.LCONST_0));
+                            after.add(new VarInsnNode(Opcodes.LSTORE, i));
+                            break;
+
+                        case Type.FLOAT:
+                            after.add(new InsnNode(Opcodes.FCONST_0));
+                            after.add(new VarInsnNode(Opcodes.FSTORE, i));
+                            break;
+
+                        case Type.DOUBLE:
+                            after.add(new InsnNode(Opcodes.DCONST_0));
+                            after.add(new VarInsnNode(Opcodes.DSTORE, i));
+                            break;
+
+                        default:
+                            after.add(new InsnNode(Opcodes.ACONST_NULL));
+                            after.add(new VarInsnNode(Opcodes.ASTORE, i));
+                            break;
+                    }
+                }
+            }
+
             for (int i = 0; i < perTarget.targetFrame.getStackSize(); i++) {
                 BasicValue value = perTarget.targetFrame.getStack(i);
                 InsnList handler = perTarget.stack.get(i);
@@ -237,10 +277,6 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
                             break;
                     }
                 }
-            }
-
-            for (InsnList local : perTarget.locals) {
-                after.add(local);
             }
 
             after.add(new JumpInsnNode(Opcodes.GOTO, labelJumpTarget));
