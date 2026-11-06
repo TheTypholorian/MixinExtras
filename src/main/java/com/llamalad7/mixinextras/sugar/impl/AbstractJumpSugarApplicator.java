@@ -210,7 +210,7 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
 
                 if (handler != null) {
                     after.add(handler);
-                } else {
+                } else if (value.getType() != null && !Objects.equals(perTarget.sourceFrame.getLocal(i).getType(), value.getType())) {
                     switch (value.getType().getSort()) {
                         case Type.BOOLEAN:
                         case Type.CHAR:

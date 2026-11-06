@@ -9,6 +9,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.analysis.BasicValue;
 import org.spongepowered.asm.mixin.injection.modify.InvalidImplicitDiscriminatorException;
 import org.spongepowered.asm.mixin.injection.modify.LocalVariableDiscriminator;
 import org.spongepowered.asm.mixin.injection.modify.LocalVariableDiscriminator.Context;
@@ -102,11 +103,23 @@ class LocalSugarApplicator extends SugarApplicator {
             }
         } else {
             AbstractJumpSugarApplicator.PerTarget perTarget = jump.getPerTarget(target, oldNode);
+            perTarget.ensureFramesInitialized(target, node);
+
             LocalVariableDiscriminator discriminator = LocalVariableDiscriminator.parse(sugar);
             Context context = InjectorUtils.getOrCreateLocalContext(target, perTarget.jumpTarget, info, targetLocalType, isArgsOnly);
             int localIndex = discriminator.findLocal(context);
             if (localIndex < 0) {
                 throw new SugarApplicationException("Failed to match a local, this should have been caught during validation.");
+            }
+
+            BasicValue targetValue = perTarget.targetFrame.getLocal(localIndex);
+
+            if (targetValue == BasicValue.UNINITIALIZED_VALUE) {
+                throw new AssertionError();
+            }
+
+            if (!targetValue.getType().equals(targetLocalType)) {
+                throw new SugarApplicationException("Wrong jump stack type, expected " + targetValue.getType().getClassName() + " but got " + targetLocalType.getClassName());
             }
 
             String refImpl = LocalRefClassGenerator.getForJumpType(targetLocalType);
