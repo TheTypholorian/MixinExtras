@@ -11,11 +11,14 @@ import org.objectweb.asm.tree.analysis.Analyzer;
 import org.objectweb.asm.tree.analysis.AnalyzerException;
 import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Frame;
+import org.objectweb.asm.util.TraceClassVisitor;
 import org.spongepowered.asm.mixin.injection.struct.InjectionNodes;
 import org.spongepowered.asm.mixin.injection.struct.Target;
+import org.spongepowered.asm.mixin.transformer.ClassInfo;
 import org.spongepowered.asm.util.asm.ASM;
 import org.spongepowered.asm.util.asm.MixinVerifier;
 
+import java.io.PrintWriter;
 import java.util.*;
 
 abstract class AbstractJumpSugarApplicator extends SugarApplicator {
@@ -121,6 +124,9 @@ abstract class AbstractJumpSugarApplicator extends SugarApplicator {
         target.method.maxStack = -1;
 
         try {
+            //target.classNode.accept(new TraceClassVisitor(new PrintWriter(System.out)));
+            // org/spongepowered/asm/synthetic/args/Args$1
+            //System.out.println("Funny type: " + ClassInfo.forType(Type.getType("Lorg/spongepowered/asm/synthetic/args/Args$1;"), ClassInfo.TypeLookup.ELEMENT_TYPE));
             return new Analyzer<>(new MixinVerifier(
                     ASM.API_VERSION,
                     Type.getObjectType(target.classNode.name),
